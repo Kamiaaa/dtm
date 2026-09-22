@@ -59,7 +59,7 @@ export default async function Home() {
             A point only counts once someone signs off on it.
           </h1>
           <p className="text-lg text-ink/70 mb-8 max-w-md">
-            Department heads assign daily one-point tasks to their team. Employees
+            Department heads assign daily tasks to their team. Employees
             submit their work, the head approves or rejects it, and only approved
             tasks count toward the score — no self-graded homework.
           </p>
