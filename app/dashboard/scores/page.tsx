@@ -126,11 +126,11 @@ export default function ScoresPage() {
         </div>
         <div className="flex items-center gap-3">
           <Link href={reportHref} className="btn-secondary">
-            Generate report
+           Report
           </Link>
           {teams.length > 0 && (
             <select
-              className="input w-auto"
+              className="input w-56"
               value={teamFilter}
               onChange={(e) => setTeamFilter(e.target.value)}
             >
