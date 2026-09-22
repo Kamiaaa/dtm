@@ -130,7 +130,7 @@ export default function ScoresPage() {
           </Link>
           {teams.length > 0 && (
             <select
-              className="input w-56"
+              className="input w-28"
               value={teamFilter}
               onChange={(e) => setTeamFilter(e.target.value)}
             >
