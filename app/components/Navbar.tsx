@@ -74,7 +74,7 @@ export default function Navbar({ session }: { session: SessionPayload }) {
             className={`text-sm px-3 py-1.5 rounded-md ${
               pathname === "/dashboard/settings"
                 ? "bg-brass-500 text-paper"
-                : "text-brassbg-brass-500/70 hover:bg-brass-500/5"
+                : "text-brass-500/70 hover:bg-brass-500/5"
             }`}
           >
             Settings
