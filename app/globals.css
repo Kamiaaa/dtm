@@ -44,7 +44,7 @@ body {
 }
 
 .btn-primary {
-  background-color: #12181b;
+  background-color: #ae8a1f;
   color: #f6f4ee;
   border-radius: 0.5rem;
   padding: 0.6rem 1.1rem;
@@ -52,7 +52,7 @@ body {
   transition: background-color 150ms ease;
 }
 .btn-primary:hover {
-  background-color: #2a3438;
+  background-color: #ae8a3f;
 }
 .btn-primary:disabled {
   opacity: 0.5;
