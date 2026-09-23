@@ -107,7 +107,7 @@ export default async function TeamStatusPanel() {
           {rows.map((team) => {
             const approvedPct = team.total > 0 ? Math.round((team.approved / team.total) * 100) : 0;
             return (
-              <li key={team.teamId} className="border-b border-ink/10 pb-4 last:border-none last:pb-0">
+              <li key={team.teamId} className="border-b border-brass-500 pb-4 last:border-none last:pb-0">
                 <div className="flex items-center justify-between mb-1.5">
                   <div>
                     <p className="text-sm font-medium">{team.name}</p>
