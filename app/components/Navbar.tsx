@@ -52,7 +52,7 @@ export default function Navbar({ session }: { session: SessionPayload }) {
                   key={link.href}
                   href={link.href}
                   className={`px-3 py-2 rounded-md text-sm ${
-                    active ? "bg-ink text-paper" : "text-ink/70 hover:bg-ink/5"
+                    active ? "bg-brass-500 text-paper" : "text-brass-500/70 hover:bg-brass-500/5"
                   }`}
                 >
                   {link.label}
