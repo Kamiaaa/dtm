@@ -2,7 +2,7 @@ import Link from 'next/link'
 export default function Header() {
     return (
         <header className="flex items-center justify-between px-8 py-6 max-w-6xl mx-auto w-full">
-            <span className="font-display text-xl tracking-tight">DTM</span>
+            <span className="font-display text-2xl text-brass-500 tracking-tight">DTM</span>
             <nav className="flex gap-3">
                 <Link href="/login" className="btn-secondary">
                     Log in
