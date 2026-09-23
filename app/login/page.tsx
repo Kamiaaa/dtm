@@ -36,7 +36,7 @@ export default function LoginPage() {
     <main className="min-h-screen flex items-center justify-center px-6">
       <div className="w-full max-w-sm">
         <div className="flex items-center gap-2.5 mb-6">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-ink text-paper">
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brass-500 text-paper">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               width="18"
