@@ -154,8 +154,8 @@ export default function ScoresPage() {
               onClick={() => applyPreset(p.value)}
               className={`text-sm px-3 py-1.5 rounded-md ${
                 activePreset === p.value
-                  ? "bg-ink text-white"
-                  : "bg-ink/5 text-ink/70 hover:bg-ink/10"
+                  ? "bg-brass-500 text-white"
+                  : "bg-brass-500/5 text-brbg-brass-500/70 hover:bg-brass-500/10"
               }`}
             >
               {p.label}
