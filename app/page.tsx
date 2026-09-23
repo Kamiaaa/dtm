@@ -55,7 +55,7 @@ export default async function Home() {
       <Header/>
       <section className="max-w-6xl mx-auto w-full px-8 grid md:grid-cols-2 gap-12 items-center py-16">
         <div>
-          <h1 className="font-display text-5xl text-amber-500 leading-[1.1] mb-6">
+          <h1 className="font-display text-5xl text-brass-500 leading-[1.1] mb-6">
             A point only counts once someone signs off on it.
           </h1>
           <p className="text-lg text-ink/70 mb-8 max-w-md">
