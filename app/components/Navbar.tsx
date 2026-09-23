@@ -43,7 +43,7 @@ export default function Navbar({ session }: { session: SessionPayload }) {
     <header className="border-b border-ink/10 bg-paper/95 sticky top-0 z-10 print:hidden">
       <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
         <div className="flex items-center gap-8">
-          <span className="font-display text-lg">DTM</span>
+          <span className="font-display text-xl text-brass-500">DTM</span>
           <nav className="hidden md:flex gap-1">
             {links.map((link) => {
               const active = pathname === link.href;
