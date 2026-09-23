@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { TeamDTO, EmployeeDTO } from "@/types";
 import { todayISO } from "@/lib/utils";
+import { useSession } from "@/app/components/SessionProvider";
 
 export default function AssignTaskForm({
   teams,
@@ -11,6 +12,9 @@ export default function AssignTaskForm({
   teams: TeamDTO[];
   onAssigned?: (count: number) => void;
 }) {
+  const session = useSession();
+  const isAdmin = session.role === "admin";
+
   const [teamId, setTeamId] = useState(teams[0]?._id ?? "");
   const [assignToAll, setAssignToAll] = useState(false);
   const [assignedTo, setAssignedTo] = useState("");
@@ -22,6 +26,11 @@ export default function AssignTaskForm({
 
   const activeTeam = teams.find((t) => t._id === teamId);
   const members = (activeTeam?.members ?? []) as EmployeeDTO[];
+  // Admins can also assign the task directly to the team's department head.
+  const head =
+    isAdmin && activeTeam && typeof activeTeam.head === "object"
+      ? (activeTeam.head as EmployeeDTO)
+      : null;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -104,6 +113,11 @@ export default function AssignTaskForm({
                 {m.name}
               </option>
             ))}
+            {head && (
+              <option key={head._id} value={head._id}>
+                {head.name} (department head)
+              </option>
+            )}
           </select>
         </div>
       </div>

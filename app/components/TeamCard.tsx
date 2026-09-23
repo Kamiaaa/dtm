@@ -55,12 +55,17 @@ export default function TeamCard({
     }
   }
 
+  const head = typeof team.head === "object" ? (team.head as EmployeeDTO) : null;
+
   return (
     <div className="card p-6">
       <div className="flex items-center justify-between mb-4">
         <div>
           <h3 className="font-display text-xl">{team.name}</h3>
           <p className="text-sm text-ink/50">{team.department}</p>
+          <p className="text-sm text-ink/50">
+            Department head: {head ? head.name : "Unassigned"}
+          </p>
         </div>
         <span className="text-sm text-ink/50">{team.members.length} members</span>
       </div>

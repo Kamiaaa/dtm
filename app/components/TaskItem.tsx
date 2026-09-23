@@ -38,7 +38,9 @@ export default function TaskItem({
   onChanged,
 }: Props) {
   const [busy, setBusy] = useState(false);
+  const [showNotes, setShowNotes] = useState(false);
   const assignee = typeof task.assignedTo === "object" ? (task.assignedTo as EmployeeDTO) : null;
+  const hasNotes = !!task.description?.trim();
 
   async function updateStatus(status: "submitted" | "approved" | "rejected", reviewNote?: string) {
     setBusy(true);
@@ -89,6 +91,15 @@ export default function TaskItem({
           {statusLabels[task.status]} · 1 pt
         </span>
 
+        {hasNotes && (
+          <button
+            onClick={() => setShowNotes((s) => !s)}
+            className="text-xs py-1 px-2.5 rounded-md border border-ink/15 text-ink/60 hover:text-ink hover:border-ink/30 whitespace-nowrap"
+          >
+            {showNotes ? "Hide notes" : "View notes"}
+          </button>
+        )}
+
         {canEmployeeSubmit && (
           <button
             onClick={() => updateStatus("submitted")}
@@ -124,6 +135,10 @@ export default function TaskItem({
           </button>
         )}
       </div>
+
+      {showNotes && hasNotes && (
+        <p className="text-xs text-ink/60 mt-2 whitespace-pre-wrap">{task.description}</p>
+      )}
 
       {task.status === "rejected" && task.reviewNote && (
         <p className="text-xs text-clay mt-1">Note: {task.reviewNote}</p>

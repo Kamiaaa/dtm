@@ -86,6 +86,13 @@ export async function POST(req: NextRequest) {
       return jsonError("You can only assign tasks within your own team.", 403);
     }
 
+    // Admins may assign a task to the team's department head as well as its
+    // members; department heads may only assign within their own team's members.
+    const assignableIds = new Set(team.members.map((m) => m.toString()));
+    if (session.role === "admin") {
+      assignableIds.add(team.head.toString());
+    }
+
     const targetIds: string[] = assignToAll
       ? team.members.map((m) => m.toString())
       : [assignedTo];
@@ -93,8 +100,8 @@ export async function POST(req: NextRequest) {
     if (targetIds.length === 0) {
       return jsonError("This team has no members to assign to yet.", 400);
     }
-    if (!assignToAll && !team.members.some((m) => m.toString() === assignedTo)) {
-      return jsonError("That employee is not a member of this team.", 400);
+    if (!assignToAll && !assignableIds.has(assignedTo)) {
+      return jsonError("That person is not a member or head of this team.", 400);
     }
 
     const created = await Task.insertMany(

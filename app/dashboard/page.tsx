@@ -1,131 +1,271 @@
-import { getSession } from "@/lib/auth";
-import { connectDB } from "@/lib/db";
-import Team from "@/models/Team";
-import Task from "@/models/Task";
-import User from "@/models/User";
-import ScoreBadge from "@/app/components/ScoreBadge";
+"use client";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import type { TaskDTO, TeamDTO, EmployeeDTO } from "@/types";
+import TaskItem from "@/app/components/TaskItem";
+import AssignTaskForm from "@/app/components/forms/AssignTaskForm";
+import { useSession } from "@/app/components/SessionProvider";
 
-export default async function DashboardOverview() {
-  const session = await getSession();
-  if (!session) return null;
+const STATUS_OPTIONS = [
+  { value: "", label: "Any status" },
+  { value: "pending", label: "Not started" },
+  { value: "submitted", label: "Awaiting review" },
+  { value: "approved", label: "Approved" },
+  { value: "rejected", label: "Rejected" },
+];
 
-  await connectDB();
+export default function TasksPage() {
+  const session = useSession();
+  const canReview = session.role === "department_head" || session.role === "admin";
 
-  if (session.role === "employee") {
-    const [totalAssigned, totalApproved, totalAwaitingReview] = await Promise.all([
-      Task.countDocuments({ assignedTo: session.userId }),
-      Task.countDocuments({ assignedTo: session.userId, status: "approved" }),
-      Task.countDocuments({ assignedTo: session.userId, status: "submitted" }),
-    ]);
-    const score = totalAssigned > 0 ? Math.round((totalApproved / totalAssigned) * 100) : 0;
+  const [tasks, setTasks] = useState<TaskDTO[]>([]);
+  const [teams, setTeams] = useState<TeamDTO[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [generateNote, setGenerateNote] = useState("");
 
-    return (
-      <div>
-        <h1 className="font-display text-3xl mb-1">Welcome back, {session.name.split(" ")[0]}</h1>
-        <p className="text-ink/60 mb-8">
-          Only tasks your department head approves count toward your score.
-        </p>
+  // Filters
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [teamFilter, setTeamFilter] = useState("");
+  const [employeeFilter, setEmployeeFilter] = useState("");
+  const isFirstFilterRun = useRef(true);
 
-        <div className="grid sm:grid-cols-4 gap-4 mb-8">
-          <StatCard label="Tasks assigned" value={totalAssigned} />
-          <StatCard label="Approved" value={totalApproved} />
-          <StatCard label="Awaiting review" value={totalAwaitingReview} />
-          <div className="card p-6">
-            <p className="text-sm text-ink/50 mb-2">Score</p>
-            <ScoreBadge score={score} />
-          </div>
-        </div>
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (status) params.set("status", status);
+      if (dateFrom) params.set("dateFrom", dateFrom);
+      if (dateTo) params.set("dateTo", dateTo);
+      if (teamFilter) params.set("team", teamFilter);
+      if (employeeFilter) params.set("employee", employeeFilter);
 
-        <Link href="/dashboard/tasks" className="btn-primary inline-block">
-          View my tasks
-        </Link>
-      </div>
-    );
+      const [teamsRes, tasksRes] = await Promise.all([
+        fetch("/api/teams"),
+        fetch(`/api/tasks?${params.toString()}`),
+      ]);
+      const teamsData = await teamsRes.json();
+      const tasksData = await tasksRes.json();
+      setTeams(teamsData.teams ?? []);
+      setTasks(tasksData.tasks ?? []);
+    } finally {
+      setLoading(false);
+    }
+  }, [status, dateFrom, dateTo, teamFilter, employeeFilter]);
+
+  // On first load, department heads/admins auto-generate today's tasks from
+  // any active recurring templates (safe to call repeatedly — it's idempotent).
+  useEffect(() => {
+    if (!canReview) {
+      load();
+      return;
+    }
+    fetch("/api/task-templates/generate", { method: "POST" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.createdCount > 0) {
+          setGenerateNote(
+            `${data.createdCount} recurring task${data.createdCount === 1 ? "" : "s"} generated for today.`
+          );
+        }
+      })
+      .catch(() => {})
+      .finally(load);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (isFirstFilterRun.current) {
+      isFirstFilterRun.current = false;
+      return;
+    }
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, dateFrom, dateTo, teamFilter, employeeFilter]);
+
+  const allMembers: EmployeeDTO[] = useMemo(() => {
+    const activeTeam = teamFilter ? teams.find((t) => t._id === teamFilter) : null;
+    const source = activeTeam ? [activeTeam] : teams;
+    const map = new Map<string, EmployeeDTO>();
+    source.forEach((t) => (t.members as EmployeeDTO[]).forEach((m) => map.set(m._id, m)));
+    return Array.from(map.values());
+  }, [teams, teamFilter]);
+
+  const visibleTasks = useMemo(() => {
+    if (!search.trim()) return tasks;
+    const q = search.trim().toLowerCase();
+    return tasks.filter((t) => t.title.toLowerCase().includes(q));
+  }, [tasks, search]);
+
+  const awaitingCount = useMemo(
+    () => tasks.filter((t) => t.status === "submitted").length,
+    [tasks]
+  );
+
+  function clearFilters() {
+    setSearch("");
+    setStatus("");
+    setDateFrom("");
+    setDateTo("");
+    setTeamFilter("");
+    setEmployeeFilter("");
   }
 
-  if (session.role === "department_head") {
-    const teams = await Team.find({ head: session.userId });
-    const teamIds = teams.map((t) => t._id);
-    const memberCount = teams.reduce((sum, t) => sum + t.members.length, 0);
-    const [totalAssigned, totalApproved, totalAwaitingReview] = await Promise.all([
-      Task.countDocuments({ team: { $in: teamIds } }),
-      Task.countDocuments({ team: { $in: teamIds }, status: "approved" }),
-      Task.countDocuments({ team: { $in: teamIds }, status: "submitted" }),
-    ]);
-
-    return (
-      <div>
-        <h1 className="font-display text-3xl mb-1">Welcome back, {session.name.split(" ")[0]}</h1>
-        <p className="text-ink/60 mb-8">A snapshot of your team's activity.</p>
-
-        <div className="grid sm:grid-cols-4 gap-4 mb-8">
-          <StatCard label="Teams" value={teams.length} />
-          <StatCard label="Team members" value={memberCount} />
-          <StatCard label="Approved tasks" value={totalApproved} />
-          <StatCard label="Awaiting your review" value={totalAwaitingReview} highlight={totalAwaitingReview > 0} />
-        </div>
-
-        <div className="flex gap-3">
-          <Link href="/dashboard/tasks" className="btn-primary">
-            {totalAwaitingReview > 0 ? "Review submissions" : "Assign a task"}
-          </Link>
-          <Link href="/dashboard/team" className="btn-secondary">
-            Manage team
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  // admin
-  const [employeeCount, teamCount, totalAssigned, totalApproved, totalAwaitingReview] =
-    await Promise.all([
-      User.countDocuments({}),
-      Team.countDocuments({}),
-      Task.countDocuments({}),
-      Task.countDocuments({ status: "approved" }),
-      Task.countDocuments({ status: "submitted" }),
-    ]);
+  const hasActiveFilters = !!(search || status || dateFrom || dateTo || teamFilter || employeeFilter);
 
   return (
     <div>
-      <h1 className="font-display text-3xl mb-1">Organization overview</h1>
-      <p className="text-ink/60 mb-8">Everything happening across departments.</p>
-
-      <div className="grid sm:grid-cols-5 gap-4 mb-8">
-        <StatCard label="Employees" value={employeeCount} />
-        <StatCard label="Teams" value={teamCount} />
-        <StatCard label="Tasks assigned" value={totalAssigned} />
-        <StatCard label="Approved" value={totalApproved} />
-        <StatCard label="Awaiting review" value={totalAwaitingReview} />
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
+        <div>
+          <h1 className="font-display text-3xl mb-1">
+            {canReview ? "Assign & review tasks" : "My tasks"}
+          </h1>
+          <p className="text-ink/60">
+            {canReview
+              ? "Each task is worth 1 point — but only once you approve it."
+              : "Submit a task when you're done. It counts toward your score once approved."}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          {canReview && (
+            <Link href="/dashboard/templates" className="btn-secondary">
+              Recurring tasks
+            </Link>
+          )}
+          {canReview && (
+            <button className="btn-primary" onClick={() => setShowForm((s) => !s)}>
+              {showForm ? "Close" : "Assign task"}
+            </button>
+          )}
+        </div>
       </div>
 
-      <div className="flex gap-3">
-        <Link href="/dashboard/employees" className="btn-primary">
-          Manage employees
-        </Link>
-        <Link href="/dashboard/scores" className="btn-secondary">
-          View scores
-        </Link>
-      </div>
-    </div>
-  );
-}
+      {generateNote && (
+        <div className="card p-3 mb-6 text-sm text-moss-600 bg-moss-500/5 border-moss-500/20">
+          {generateNote}
+        </div>
+      )}
 
-function StatCard({
-  label,
-  value,
-  highlight,
-}: {
-  label: string;
-  value: number;
-  highlight?: boolean;
-}) {
-  return (
-    <div className={`card p-6 ${highlight ? "border-brass-500 bg-brass-500/5" : ""}`}>
-      <p className="text-sm text-ink/50 mb-1">{label}</p>
-      <p className="font-display text-3xl">{value}</p>
+      {canReview && showForm && (
+        <div className="mb-8">
+          <AssignTaskForm
+            teams={teams}
+            onAssigned={() => {
+              setShowForm(false);
+              load();
+            }}
+          />
+        </div>
+      )}
+
+      {canReview && awaitingCount > 0 && status !== "submitted" && (
+        <button
+          onClick={() => setStatus("submitted")}
+          className="mb-4 text-sm px-3 py-1.5 rounded-md bg-brass-500/10 text-brass-600 hover:bg-brass-500/20"
+        >
+          {awaitingCount} task{awaitingCount === 1 ? "" : "s"} awaiting your review →
+        </button>
+      )}
+
+      <div className="card p-4 mb-4">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <input
+            className="input text-sm"
+            placeholder="Search by title…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <select className="input text-sm" value={status} onChange={(e) => setStatus(e.target.value)}>
+            {STATUS_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+          <input
+            type="date"
+            className="input text-sm"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+            aria-label="From date"
+          />
+          <input
+            type="date"
+            className="input text-sm"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+            aria-label="To date"
+          />
+        </div>
+
+        {canReview && (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-3">
+            <select
+              className="input text-sm"
+              value={teamFilter}
+              onChange={(e) => {
+                setTeamFilter(e.target.value);
+                setEmployeeFilter("");
+              }}
+            >
+              <option value="">All teams</option>
+              {teams.map((t) => (
+                <option key={t._id} value={t._id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+            <select
+              className="input text-sm"
+              value={employeeFilter}
+              onChange={(e) => setEmployeeFilter(e.target.value)}
+            >
+              <option value="">All employees</option>
+              {allMembers.map((m) => (
+                <option key={m._id} value={m._id}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {hasActiveFilters && (
+          <button onClick={clearFilters} className="text-xs text-ink/50 hover:text-ink underline mt-3">
+            Clear filters
+          </button>
+        )}
+      </div>
+
+      <div className="card p-4">
+        {loading ? (
+          <p className="text-ink/50 p-4">Loading…</p>
+        ) : visibleTasks.length === 0 ? (
+          <p className="text-ink/50 p-4 text-center">
+            {hasActiveFilters ? "No tasks match these filters." : "No tasks yet."}
+          </p>
+        ) : (
+          visibleTasks.map((task) => {
+            const assigneeId =
+              typeof task.assignedTo === "object" ? task.assignedTo._id : task.assignedTo;
+            return (
+              <TaskItem
+                key={task._id}
+                task={task}
+                showAssignee={canReview}
+                canSubmit={assigneeId === session.userId}
+                canReview={canReview}
+                canDelete={canReview}
+                onChanged={load}
+              />
+            );
+          })
+        )}
+      </div>
     </div>
   );
 }
